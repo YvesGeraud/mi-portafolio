@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap');
+
+:root {
+  --bg:       #0a0a0f;
+  --surface:  #13131f;
+  --border:   #2a2a42;
+  --text:     #e8e8f0;
+  --muted:    #666688;
+  --accent:   #5ee3a0;
+  --font-mono: 'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+/* Header */
+.header { margin-bottom: 3rem; animation: fadeUp 0.6s ease both; }
+
+.header-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.header-name { font-size: 2.5rem; font-weight: 800; }
+
+.header-subtitle { font-size: 1rem; color: var(--muted); margin-top: 0.4rem; }
+
+.header-links { display: flex; gap: 1rem; margin-top: 1rem; }
+
+.header-links a {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  border: 0.5px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 6px;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.header-links a:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Grid */
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  animation: fadeUp 0.5s ease both;
+}
+
+.card:hover { transform: translateY(-4px); border-color: var(--accent); }
+
+.card-image img { width: 100%; height: 160px; object-fit: cover; display: block; }
+
+.card-body { padding: 1.25rem; }
+
+.card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
+
+.card-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.6;
+  font-family: var(--font-mono);
+}
+
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.9rem; }
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 0.5px solid var(--border);
+  color: var(--muted);
+}
+
+.card-link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.card-link:hover { opacity: 0.7; }
+
+/* Animación */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
