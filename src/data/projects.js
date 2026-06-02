@@ -5,7 +5,7 @@ export const projects = [
     id: 1,
     title: "Restaurante",
     description:
-      "Sistema de gestión desacoplado. Frontend construido en Angular utilizando Signal State para reactividad óptima. Backend en Node.js con arquitectura híbrida (API REST + GraphQL Subscriptions en tiempo real para monitor de cocina) y persistencia mediante Prisma ORM.",
+      "Sistema de gestión desacoplado con frontend en Angular y backend en Node.js. Implementa arquitectura híbrida REST + GraphQL Subscriptions para monitoreo en tiempo real, persistencia con Prisma ORM y despliegue en Railway/Vercel.",
     tags: [
       "Angular Signals",
       "Signal Store / RxJS",
@@ -32,16 +32,16 @@ export const projects = [
     title: "El Rosario",
     image: `${import.meta.env.BASE_URL}images/el-rosario.png`,
     description:
-      "Fundamentos y Arquitectura Nativa. Sistema monolítico desarrollado en PHP puro y SQL nativo, diseñado para demostrar el dominio de las bases de la ingeniería web sin dependencias de frameworks externos. Implementa una arquitectura MVC (Modelo-Vista-Controlador) construida desde cero, con un motor de enrutamiento propio, gestión manual de sesiones seguras, control estricto de autenticación y optimización de consultas relacionales. Desplegado y operando de forma continua en entorno de producción cloud.",
+      "Sistema monolítico desarrollado en PHP nativo y SQL, construido desde cero bajo una arquitectura MVC propia. Incluye enrutamiento manual, autenticación por sesiones, protección contra XSS/CSRF, hash de contraseñas y optimización de consultas relacionales.",
     tags: [
       "PHP Vanilla / PHP Native",
       "SQL (Nativo)",
       "MySQL",
-      "MVC Architecture",
-      "Custom Router",
-      "OOP (Object-Oriented Programming)",
-      "Session Management",
-      "Web Security (XSS / CSRF)",
+      "Arquitectura MVC",
+      "Rutas Personalizadas",
+      "Programación Orientada a Objetos",
+      "Gestión de Sesiones",
+      "Seguridad Web (XSS / CSRF)",
       "Password Hashing (Bcrypt)",
       "Railway",
       "HeidiSQL",

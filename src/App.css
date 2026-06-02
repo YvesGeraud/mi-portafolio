@@ -42,20 +42,38 @@ body {
 
 .header-subtitle { font-size: 1rem; color: var(--muted); margin-top: 0.4rem; }
 
-.header-links { display: flex; gap: 1rem; margin-top: 1rem; }
+.header-about {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.8;
+  margin: 1.8rem auto 0 auto;
+  max-width: 580px;
+  opacity: 0.85;
+  text-align: center;
+}
+
+.header-links { display: flex; gap: 1.2rem; margin-top: 2.2rem; justify-content: center; }
 
 .header-links a {
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 13px;
+  color: var(--text);
   text-decoration: none;
-  border: 0.5px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 6px;
-  transition: border-color 0.2s, color 0.2s;
+  border: 1px solid var(--border);
+  padding: 8px 20px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
 }
 
-.header-links a:hover { color: var(--accent); border-color: var(--accent); }
+.header-links a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(94, 227, 160, 0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(94, 227, 160, 0.1);
+}
 
 /* Grid */
 .section-title {
@@ -87,7 +105,7 @@ body {
 
 .card-image img { width: 100%; height: 160px; object-fit: cover; display: block; }
 
-.card-body { padding: 1.25rem; }
+.card-body { padding: 1.25rem; text-align: left; }
 
 .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
 
@@ -120,6 +138,48 @@ body {
 }
 
 .card-link:hover { opacity: 0.7; }
+
+/* Skills / Enfoque Técnico */
+.skills-section {
+  margin-top: 5rem;
+  margin-bottom: 4rem;
+  animation: fadeUp 0.6s ease both;
+  animation-delay: 0.1s;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.skill-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.skill-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.skill-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.6rem;
+}
+
+.skill-desc {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
 
 /* Animación */
 @keyframes fadeUp {

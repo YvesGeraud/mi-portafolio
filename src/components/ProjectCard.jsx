@@ -49,7 +49,7 @@ function ProjectCard({ title, description, tags, image, github, githubFront, git
         {codeGraph && (
           <div style={{ marginTop: '10px' }}>
             <a href={codeGraph} target="_blank" rel="noreferrer" className="card-link special-link" style={{ display: 'inline-block', fontWeight: 'bold', color: '#00d2ff' }}>
-              🔍 Auditar Arquitectura (CodeGraph)
+              🔍 Explorar arquitectura (CodeGraph)
             </a>
           </div>
         )}
