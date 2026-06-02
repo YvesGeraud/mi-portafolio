@@ -4,9 +4,9 @@ function Header() {
   return (
     <header className="header">
       <div className="header-tag">// portafolio</div>
-      <h1 className="header-name">Yves Geraud</h1>
+      <h1 className="header-name">Ing. Yves Geraud Mendoza</h1>
       <p className="header-subtitle">
-        Desarrollador · Estructuras de datos · Algoritmos
+        Tech Lead | Senior Fullstack Developer (Java, Node.js, Angular) | Experto en QA & Performance Testing
       </p>
       <div className="header-links">
         <a href="https://github.com/YvesGeraud" target="_blank" rel="noreferrer">
