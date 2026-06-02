@@ -3,12 +3,15 @@
 export const projects = [
   {
     id: 1,
-    title: "Visualizador de Grafos",
+    title: "Restaurante",
     description:
-      "Implementación de BFS, DFS y Dijkstra con animaciones paso a paso sobre grafos ponderados.",
-    tags: ["Python", "NetworkX", "Matplotlib"],
-    image: `${import.meta.env.BASE_URL}images/grafos.png`,
-    github: "https://github.com/YvesGeraud/Grafos",
+      "Sistema de gestión desacoplado. Frontend construido en Angular utilizando Signal State para reactividad óptima. Backend en Node.js con arquitectura híbrida (API REST + GraphQL Subscriptions en tiempo real para monitor de cocina) y persistencia mediante Prisma ORM.",
+    tags: ["TypeScript", "Angular", "Node.js", "GraphQL", "Prisma"],
+    image: `${import.meta.env.BASE_URL}images/restaurante.png`,
+    githubFront: "https://github.com/YvesGeraud/restaurant-angular-frontend",
+    githubBack: "https://github.com/YvesGeraud/restaurant-express-backend", // Puedes ajustar este link al real
+    live: "https://restaurante-frontend-angular.vercel.app",
+    codeGraph: `${import.meta.env.BASE_URL}/grafos/index.html`,
   },
   {
     id: 2,

@@ -1,5 +1,5 @@
 // src/components/ProjectCard.jsx
-function ProjectCard({ title, description, tags, image, github, index }) {
+function ProjectCard({ title, description, tags, image, github, githubFront, githubBack, live, codeGraph, index }) {
   return (
     <div
       className="card"
@@ -21,10 +21,37 @@ function ProjectCard({ title, description, tags, image, github, index }) {
           ))}
         </div>
 
-        {github && (
-          <a href={github} target="_blank" rel="noreferrer" className="card-link">
-            Ver en GitHub →
-          </a>
+        {/* Agrupamos los enlaces en un contenedor flex */}
+        <div className="card-links" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '15px' }}>
+          {github && (
+            <a href={github} target="_blank" rel="noreferrer" className="card-link">
+              GitHub →
+            </a>
+          )}
+          {githubFront && (
+            <a href={githubFront} target="_blank" rel="noreferrer" className="card-link">
+              Front →
+            </a>
+          )}
+          {githubBack && (
+            <a href={githubBack} target="_blank" rel="noreferrer" className="card-link">
+              Back →
+            </a>
+          )}
+          {live && (
+            <a href={live} target="_blank" rel="noreferrer" className="card-link">
+              Live →
+            </a>
+          )}
+        </div>
+
+        {/* Enlace especial para el CodeGraph */}
+        {codeGraph && (
+          <div style={{ marginTop: '10px' }}>
+            <a href={codeGraph} target="_blank" rel="noreferrer" className="card-link special-link" style={{ display: 'inline-block', fontWeight: 'bold', color: '#00d2ff' }}>
+              🔍 Auditar Arquitectura (CodeGraph)
+            </a>
+          </div>
         )}
       </div>
     </div>
