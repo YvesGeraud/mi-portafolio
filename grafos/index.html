@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeGraph — Visualización de Arquitectura</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- D3.js library (Local con fallback a CDN) -->
+  <script src="d3.v7.min.js"></script>
+  <script>
+    if (typeof d3 === 'undefined') {
+      console.warn('D3 local no encontrado. Cargando desde CDN...');
+      document.write('<script src="https://d3js.org/d3.v7.min.js"><\/script>');
+    }
+  </script>
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .glass-panel {
+      background: rgba(22, 27, 34, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(240, 246, 252, 0.1);
+    }
+    
+    .header-bar {
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+    
+    .brand-text h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+      line-height: 1.2;
+    }
+    
+    .brand-text p {
+      font-size: 11px;
+      color: #8b949e;
+      margin: 0;
+    }
+    
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    #search-input {
+      padding: 6px 14px;
+      border-radius: 8px;
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      font-size: 13px;
+      color: white;
+      width: 240px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+    
+    #search-input:focus {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+    }
+    
+    .stats-info {
+      font-size: 11px;
+      color: #8b949e;
+    }
+    
+    .stats-highlight {
+      color: #a78bfa;
+      font-weight: 600;
+    }
+    
+    .main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #graph-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    
+    .node {
+      stroke-width: 2px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    
+    .node:hover {
+      filter: brightness(1.2) drop-shadow(0 0 8px currentColor);
+      stroke-width: 3px;
+    }
+    
+    .link {
+      stroke-opacity: 0.25;
+      stroke-width: 1.5px;
+      transition: all 0.3s ease;
+      fill: none;
+    }
+    
+    .link.active {
+      stroke-opacity: 0.8;
+      stroke-width: 3px;
+    }
+    
+    .details-panel {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 380px;
+      max-height: 80vh;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      box-sizing: border-box;
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .details-panel:not(.hidden) {
+      display: flex;
+    }
+    
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    
+    #node-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+      word-break: break-all;
+      padding-right: 16px;
+    }
+    
+    #close-panel {
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    
+    #close-panel:hover {
+      color: white;
+    }
+    
+    #node-type-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .info-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .info-label {
+      font-size: 11px;
+      color: #8b949e;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    #node-file {
+      font-size: 12px;
+      background-color: rgba(22, 27, 34, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      word-break: break-all;
+      user-select: all;
+      font-family: monospace;
+      color: #e6edf3;
+      margin: 0;
+    }
+    
+    #node-layer {
+      font-size: 13px;
+      color: white;
+      font-weight: 500;
+      margin: 0;
+    }
+    
+    .relations-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .relations-group-label {
+      font-size: 11px;
+      color: #8b949e;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    
+    .relations-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .relation-item {
+      background-color: rgba(22, 27, 34, 0.4);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(48, 54, 61, 0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .relation-item:hover {
+      background-color: rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.4);
+    }
+    
+    .relation-name {
+      color: #e6edf3;
+      font-weight: 500;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 70%;
+    }
+    
+    .relation-type {
+      font-size: 10px;
+      color: #8b949e;
+      text-transform: uppercase;
+    }
+    
+    .relation-empty {
+      font-size: 12px;
+      color: #484f58;
+      font-style: italic;
+    }
+    
+    .legend-panel {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+    
+    .legend-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0;
+    }
+    
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 16px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #8b949e;
+    }
+    
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    /* Estilos para las insignias */
+    .badge-REST_ENDPOINT { background-color: #ef4444; color: white; }
+    .badge-GRAPHQL_OPERATION { background-color: #ec4899; color: white; }
+    .badge-SERVICE { background-color: #3b82f6; color: white; }
+    .badge-CONTROLLER { background-color: #10b981; color: white; }
+    .badge-PRISMA_MODEL { background-color: #f59e0b; color: white; }
+    .badge-ANGULAR_STORE { background-color: #8b5cf6; color: white; }
+    .badge-ANGULAR_COMPONENT { background-color: #06b6d4; color: white; }
+    .badge-FILE { background-color: #6b7280; color: white; }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Premium -->
+  <header class="header-bar glass-panel">
+    <div class="header-brand">
+      <div class="brand-logo">G</div>
+      <div class="brand-text">
+        <h1>CodeGraph</h1>
+        <p>Grafo de Dependencias e Interconexiones</p>
+      </div>
+    </div>
+    
+    <!-- Barra de búsqueda e información -->
+    <div class="header-controls">
+      <input type="text" id="search-input" placeholder="Buscar nodo...">
+      <div class="stats-info">
+        Nodos: <span id="nodes-count" class="stats-highlight">0</span> | 
+        Aristas: <span id="edges-count" class="stats-highlight">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Área Principal -->
+  <div class="main-container">
+    <!-- Canvas del SVG para D3 -->
+    <svg id="graph-svg"></svg>
+    
+    <!-- Panel Lateral de Detalles (Premium Glassmorphism) -->
+    <div id="details-panel" class="details-panel glass-panel hidden">
+      <div class="panel-header">
+        <h2 id="node-name">Selecciona un nodo</h2>
+        <button id="close-panel">&times;</button>
+      </div>
+      
+      <div>
+        <span id="node-type-badge">TIPO</span>
+      </div>
+      
+      <div class="info-group">
+        <label class="info-label">Archivo</label>
+        <p id="node-file"></p>
+      </div>
+
+      <div class="info-group">
+        <label class="info-label">Capa del Sistema</label>
+        <p id="node-layer"></p>
+      </div>
+
+      <!-- Relaciones Entrantes y Salientes -->
+      <div class="relations-container">
+        <div>
+          <label class="relations-group-label">Depende de (Salientes)</label>
+          <div id="outgoing-relations" class="relations-list"></div>
+        </div>
+        <div>
+          <label class="relations-group-label">Es consumido por (Entrantes)</label>
+          <div id="incoming-relations" class="relations-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leyenda Flotante -->
+    <div class="legend-panel glass-panel">
+      <h3 class="legend-title">Leyenda de Nodos</h3>
+      <div class="legend-grid">
+        <div class="legend-item"><span class="legend-color" style="background-color: #ef4444;"></span> REST Endpoint</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #ec4899;"></span> GraphQL Operation</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #3b82f6;"></span> Service</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #10b981;"></span> Controller/Resolver</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #f59e0b;"></span> Prisma Model</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #8b5cf6;"></span> Angular Store</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #06b6d4;"></span> Angular Component</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script del Grafo inyectado -->
+  <script>
+    // Inyección de los datos del Grafo
+    const graphData = {"nodes":[{"id":"Backend:prisma:ct_categoria","label":"ct_categoria","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_categoria"}},{"id":"Backend:prisma:ct_cliente","label":"ct_cliente","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_cliente"}},{"id":"Backend:prisma:ct_estado_reservacion","label":"ct_estado_reservacion","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_estado_reservacion"}},{"id":"Backend:prisma:ct_mesa","label":"ct_mesa","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_mesa"}},{"id":"Backend:prisma:ct_permiso","label":"ct_permiso","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_permiso"}},{"id":"Backend:prisma:ct_plantilla_correo","label":"ct_plantilla_correo","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_plantilla_correo"}},{"id":"Backend:prisma:ct_platillo","label":"ct_platillo","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_platillo"}},{"id":"Backend:prisma:ct_rol","label":"ct_rol","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_rol"}},{"id":"Backend:prisma:ct_tipo_documento","label":"ct_tipo_documento","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_tipo_documento"}},{"id":"Backend:prisma:ct_usuario","label":"ct_usuario","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_usuario"}},{"id":"Backend:prisma:dt_bitacora","label":"dt_bitacora","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"dt_bitacora"}},{"id":"Backend:prisma:dt_bloqueo_seguridad","label":"dt_bloqueo_seguridad","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"dt_bloqueo_seguridad"}},{"id":"Backend:prisma:dt_detalle_orden","label":"dt_detalle_orden","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"dt_detalle_orden"}},{"id":"Backend:prisma:dt_documento","label":"dt_documento","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"dt_documento"}},{"id":"Backend:prisma:dt_refresh_token","label":"dt_refresh_token","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"dt_refresh_token"}},{"id":"Backend:prisma:rl_orden","label":"rl_orden","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"rl_orden"}},{"id":"Backend:prisma:rl_reservacion","label":"rl_reservacion","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"rl_reservacion"}},{"id":"Backend:prisma:rl_rol_permiso","label":"rl_rol_permiso","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"rl_rol_permiso"}},{"id":"Backend:prisma:ct_configuracion","label":"ct_configuracion","type":"PRISMA_MODEL","filePath":"Backend/prisma/schema.prisma","meta":{"databaseTable":"ct_configuracion"}},{"id":"Backend:graphql:query:categorias","label":"QUERY categorias","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/categoria.graphql","meta":{"operationType":"query","name":"categorias"}},{"id":"Backend:graphql:query:categoria","label":"QUERY categoria","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/categoria.graphql","meta":{"operationType":"query","name":"categoria"}},{"id":"Backend:graphql:query:mesas","label":"QUERY mesas","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/mesa.graphql","meta":{"operationType":"query","name":"mesas"}},{"id":"Backend:graphql:query:mesa","label":"QUERY mesa","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/mesa.graphql","meta":{"operationType":"query","name":"mesa"}},{"id":"Backend:graphql:query:ordenes","label":"QUERY ordenes","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"query","name":"ordenes"}},{"id":"Backend:graphql:query:orden","label":"QUERY orden","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"query","name":"orden"}},{"id":"Backend:graphql:mutation:crearOrden","label":"MUTATION crearOrden","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"mutation","name":"crearOrden"}},{"id":"Backend:graphql:mutation:cambiarEstadoOrden","label":"MUTATION cambiarEstadoOrden","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"mutation","name":"cambiarEstadoOrden"}},{"id":"Backend:graphql:mutation:cancelarOrden","label":"MUTATION cancelarOrden","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"mutation","name":"cancelarOrden"}},{"id":"Backend:graphql:subscription:ordenNueva","label":"SUBSCRIPTION ordenNueva","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"subscription","name":"ordenNueva"}},{"id":"Backend:graphql:subscription:ordenActualizada","label":"SUBSCRIPTION ordenActualizada","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/orden.graphql","meta":{"operationType":"subscription","name":"ordenActualizada"}},{"id":"Backend:graphql:query:platillos","label":"QUERY platillos","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/platillo.graphql","meta":{"operationType":"query","name":"platillos"}},{"id":"Backend:graphql:query:platillo","label":"QUERY platillo","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/platillo.graphql","meta":{"operationType":"query","name":"platillo"}},{"id":"Backend:graphql:mutation:crearPlatillo","label":"MUTATION crearPlatillo","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/platillo.graphql","meta":{"operationType":"mutation","name":"crearPlatillo"}},{"id":"Backend:graphql:mutation:actualizarPlatillo","label":"MUTATION actualizarPlatillo","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/platillo.graphql","meta":{"operationType":"mutation","name":"actualizarPlatillo"}},{"id":"Backend:graphql:mutation:eliminarPlatillo","label":"MUTATION eliminarPlatillo","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/platillo.graphql","meta":{"operationType":"mutation","name":"eliminarPlatillo"}},{"id":"Backend:graphql:query:reservaciones","label":"QUERY reservaciones","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/reservacion.graphql","meta":{"operationType":"query","name":"reservaciones"}},{"id":"Backend:graphql:query:reservacion","label":"QUERY reservacion","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/reservacion.graphql","meta":{"operationType":"query","name":"reservacion"}},{"id":"Backend:graphql:mutation:crearReservacion","label":"MUTATION crearReservacion","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/reservacion.graphql","meta":{"operationType":"mutation","name":"crearReservacion"}},{"id":"Backend:graphql:mutation:actualizarReservacion","label":"MUTATION actualizarReservacion","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/reservacion.graphql","meta":{"operationType":"mutation","name":"actualizarReservacion"}},{"id":"Backend:graphql:mutation:eliminarReservacion","label":"MUTATION eliminarReservacion","type":"GRAPHQL_OPERATION","filePath":"Backend/src/graphql/schema/reservacion.graphql","meta":{"operationType":"mutation","name":"eliminarReservacion"}},{"id":"Backend:controller:ArchivoController","label":"ArchivoController","type":"CONTROLLER","filePath":"Backend/src/controllers/archivo.controller.ts"},{"id":"Backend:controller:AuthController","label":"AuthController","type":"CONTROLLER","filePath":"Backend/src/controllers/auth.controller.ts"},{"id":"Backend:controller:CategoriaController","label":"CategoriaController","type":"CONTROLLER","filePath":"Backend/src/controllers/categoria.controller.ts"},{"id":"Backend:controller:ClienteController","label":"ClienteController","type":"CONTROLLER","filePath":"Backend/src/controllers/cliente.controller.ts"},{"id":"Backend:controller:ConfiguracionController","label":"ConfiguracionController","type":"CONTROLLER","filePath":"Backend/src/controllers/configuracion.controller.ts"},{"id":"Backend:controller:EmailController","label":"EmailController","type":"CONTROLLER","filePath":"Backend/src/controllers/email.controller.ts"},{"id":"Backend:controller:ExcelController","label":"ExcelController","type":"CONTROLLER","filePath":"Backend/src/controllers/excel.controller.ts"},{"id":"Backend:controller:MesaController","label":"MesaController","type":"CONTROLLER","filePath":"Backend/src/controllers/mesa.controller.ts"},{"id":"Backend:controller:OrdenController","label":"OrdenController","type":"CONTROLLER","filePath":"Backend/src/controllers/orden.controller.ts"},{"id":"Backend:controller:PagoController","label":"PagoController","type":"CONTROLLER","filePath":"Backend/src/controllers/pago.controller.ts"},{"id":"Backend:controller:PdfController","label":"PdfController","type":"CONTROLLER","filePath":"Backend/src/controllers/pdf.controller.ts"},{"id":"Backend:controller:PlatilloController","label":"PlatilloController","type":"CONTROLLER","filePath":"Backend/src/controllers/platillo.controller.ts"},{"id":"Backend:controller:ReporteController","label":"ReporteController","type":"CONTROLLER","filePath":"Backend/src/controllers/reporte.controller.ts"},{"id":"Backend:controller:ReservacionController","label":"ReservacionController","type":"CONTROLLER","filePath":"Backend/src/controllers/reservacion.controller.ts"},{"id":"Backend:controller:UsuarioController","label":"UsuarioController","type":"CONTROLLER","filePath":"Backend/src/controllers/usuario.controller.ts"},{"id":"Backend:endpoint:POST:/:subtipo","label":"POST /api/:subtipo","type":"REST_ENDPOINT","filePath":"Backend/src/routes/archivo.route.ts","meta":{"verb":"POST","path":"/api/:subtipo"}},{"id":"Backend:endpoint:GET:/:subtipo/:nombre","label":"GET /api/:subtipo/:nombre","type":"REST_ENDPOINT","filePath":"Backend/src/routes/archivo.route.ts","meta":{"verb":"GET","path":"/api/:subtipo/:nombre"}},{"id":"Backend:endpoint:DELETE:/:subtipo/:nombre","label":"DELETE /api/:subtipo/:nombre","type":"REST_ENDPOINT","filePath":"Backend/src/routes/archivo.route.ts","meta":{"verb":"DELETE","path":"/api/:subtipo/:nombre"}},{"id":"Backend:endpoint:POST:/login","label":"POST /api/login","type":"REST_ENDPOINT","filePath":"Backend/src/routes/auth.route.ts","meta":{"verb":"POST","path":"/api/login"}},{"id":"Backend:endpoint:POST:/refresh","label":"POST /api/refresh","type":"REST_ENDPOINT","filePath":"Backend/src/routes/auth.route.ts","meta":{"verb":"POST","path":"/api/refresh"}},{"id":"Backend:endpoint:POST:/logout","label":"POST /api/logout","type":"REST_ENDPOINT","filePath":"Backend/src/routes/auth.route.ts","meta":{"verb":"POST","path":"/api/logout"}},{"id":"Backend:endpoint:GET:/me","label":"GET /api/me","type":"REST_ENDPOINT","filePath":"Backend/src/routes/auth.route.ts","meta":{"verb":"GET","path":"/api/me"}},{"id":"Backend:endpoint:GET:/","label":"GET /api/","type":"REST_ENDPOINT","filePath":"Backend/src/routes/categoria.route.ts","meta":{"verb":"GET","path":"/api/"}},{"id":"Backend:endpoint:GET:/:id","label":"GET /api/:id","type":"REST_ENDPOINT","filePath":"Backend/src/routes/categoria.route.ts","meta":{"verb":"GET","path":"/api/:id"}},{"id":"Backend:endpoint:POST:/","label":"POST /api/","type":"REST_ENDPOINT","filePath":"Backend/src/routes/categoria.route.ts","meta":{"verb":"POST","path":"/api/"}},{"id":"Backend:endpoint:PUT:/:id","label":"PUT /api/:id","type":"REST_ENDPOINT","filePath":"Backend/src/routes/categoria.route.ts","meta":{"verb":"PUT","path":"/api/:id"}},{"id":"Backend:endpoint:DELETE:/:id","label":"DELETE /api/:id","type":"REST_ENDPOINT","filePath":"Backend/src/routes/categoria.route.ts","meta":{"verb":"DELETE","path":"/api/:id"}},{"id":"Backend:endpoint:PATCH:/:id","label":"PATCH /api/:id","type":"REST_ENDPOINT","filePath":"Backend/src/routes/cliente.route.ts","meta":{"verb":"PATCH","path":"/api/:id"}},{"id":"Backend:endpoint:PATCH:/","label":"PATCH /api/","type":"REST_ENDPOINT","filePath":"Backend/src/routes/configuracion.route.ts","meta":{"verb":"PATCH","path":"/api/"}},{"id":"Backend:endpoint:POST:/confirmar-reservacion","label":"POST /api/confirmar-reservacion","type":"REST_ENDPOINT","filePath":"Backend/src/routes/email.route.ts","meta":{"verb":"POST","path":"/api/confirmar-reservacion"}},{"id":"Backend:endpoint:POST:/recuperar-password","label":"POST /api/recuperar-password","type":"REST_ENDPOINT","filePath":"Backend/src/routes/email.route.ts","meta":{"verb":"POST","path":"/api/recuperar-password"}},{"id":"Backend:endpoint:POST:/prueba","label":"POST /api/prueba","type":"REST_ENDPOINT","filePath":"Backend/src/routes/email.route.ts","meta":{"verb":"POST","path":"/api/prueba"}},{"id":"Backend:endpoint:GET:/menu","label":"GET /api/menu","type":"REST_ENDPOINT","filePath":"Backend/src/routes/excel.route.ts","meta":{"verb":"GET","path":"/api/menu"}},{"id":"Backend:endpoint:GET:/ventas","label":"GET /api/ventas","type":"REST_ENDPOINT","filePath":"Backend/src/routes/excel.route.ts","meta":{"verb":"GET","path":"/api/ventas"}},{"id":"Backend:endpoint:PATCH:/:id/estado","label":"PATCH /api/:id/estado","type":"REST_ENDPOINT","filePath":"Backend/src/routes/orden.route.ts","meta":{"verb":"PATCH","path":"/api/:id/estado"}},{"id":"Backend:endpoint:POST:/stripe","label":"POST /api/stripe","type":"REST_ENDPOINT","filePath":"Backend/src/routes/pago.route.ts","meta":{"verb":"POST","path":"/api/stripe"}},{"id":"Backend:endpoint:POST:/:id/pago","label":"POST /api/:id/pago","type":"REST_ENDPOINT","filePath":"Backend/src/routes/pago.route.ts","meta":{"verb":"POST","path":"/api/:id/pago"}},{"id":"Backend:endpoint:POST:/:id/cancelar","label":"POST /api/:id/cancelar","type":"REST_ENDPOINT","filePath":"Backend/src/routes/pago.route.ts","meta":{"verb":"POST","path":"/api/:id/cancelar"}},{"id":"Backend:endpoint:PATCH:/:id/completar","label":"PATCH /api/:id/completar","type":"REST_ENDPOINT","filePath":"Backend/src/routes/pago.route.ts","meta":{"verb":"PATCH","path":"/api/:id/completar"}},{"id":"Backend:endpoint:POST:/batch","label":"POST /api/batch","type":"REST_ENDPOINT","filePath":"Backend/src/routes/platillo.route.ts","meta":{"verb":"POST","path":"/api/batch"}},{"id":"Backend:endpoint:GET:/stats","label":"GET /api/stats","type":"REST_ENDPOINT","filePath":"Backend/src/routes/reporte.route.ts","meta":{"verb":"GET","path":"/api/stats"}},{"id":"Backend:endpoint:GET:/dashboard","label":"GET /api/dashboard","type":"REST_ENDPOINT","filePath":"Backend/src/routes/reporte.route.ts","meta":{"verb":"GET","path":"/api/dashboard"}},{"id":"Backend:endpoint:GET:/roles","label":"GET /api/roles","type":"REST_ENDPOINT","filePath":"Backend/src/routes/usuario.route.ts","meta":{"verb":"GET","path":"/api/roles"}},{"id":"Backend:endpoint:GET:/permisos","label":"GET /api/permisos","type":"REST_ENDPOINT","filePath":"Backend/src/routes/usuario.route.ts","meta":{"verb":"GET","path":"/api/permisos"}},{"id":"Backend:endpoint:GET:/roles/:id/permisos","label":"GET /api/roles/:id/permisos","type":"REST_ENDPOINT","filePath":"Backend/src/routes/usuario.route.ts","meta":{"verb":"GET","path":"/api/roles/:id/permisos"}},{"id":"Backend:endpoint:PUT:/roles/:id/permisos","label":"PUT /api/roles/:id/permisos","type":"REST_ENDPOINT","filePath":"Backend/src/routes/usuario.route.ts","meta":{"verb":"PUT","path":"/api/roles/:id/permisos"}},{"id":"Backend:service:ApiExternaService","label":"ApiExternaService","type":"SERVICE","filePath":"Backend/src/services/api-externa.service.ts"},{"id":"Backend:service:ArchivoService","label":"ArchivoService","type":"SERVICE","filePath":"Backend/src/services/archivo.service.ts"},{"id":"Backend:service:AuthService","label":"AuthService","type":"SERVICE","filePath":"Backend/src/services/auth.service.ts"},{"id":"Backend:service:CategoriaService","label":"CategoriaService","type":"SERVICE","filePath":"Backend/src/services/categoria.service.ts"},{"id":"Backend:service:ClienteService","label":"ClienteService","type":"SERVICE","filePath":"Backend/src/services/cliente.service.ts"},{"id":"Backend:service:ConfiguracionService","label":"ConfiguracionService","type":"SERVICE","filePath":"Backend/src/services/configuracion.service.ts"},{"id":"Backend:service:EmailService","label":"EmailService","type":"SERVICE","filePath":"Backend/src/services/email.service.ts"},{"id":"Backend:service:ExcelService","label":"ExcelService","type":"SERVICE","filePath":"Backend/src/services/excel.service.ts"},{"id":"Backend:service:MesaService","label":"MesaService","type":"SERVICE","filePath":"Backend/src/services/mesa.service.ts"},{"id":"Backend:service:OrdenService","label":"OrdenService","type":"SERVICE","filePath":"Backend/src/services/orden.service.ts"},{"id":"Backend:service:PagoService","label":"PagoService","type":"SERVICE","filePath":"Backend/src/services/pago.service.ts"},{"id":"Backend:service:PdfService","label":"PdfService","type":"SERVICE","filePath":"Backend/src/services/pdf.service.ts"},{"id":"Backend:service:PlatilloService","label":"PlatilloService","type":"SERVICE","filePath":"Backend/src/services/platillo.service.ts"},{"id":"Backend:service:ReporteService","label":"ReporteService","type":"SERVICE","filePath":"Backend/src/services/reporte.service.ts"},{"id":"Backend:service:ReservacionService","label":"ReservacionService","type":"SERVICE","filePath":"Backend/src/services/reservacion.service.ts"},{"id":"Backend:service:StripeService","label":"StripeService","type":"SERVICE","filePath":"Backend/src/services/stripe.service.ts"},{"id":"Backend:service:UsuarioService","label":"UsuarioService","type":"SERVICE","filePath":"Backend/src/services/usuario.service.ts"},{"id":"Backend:resolver:CategoriaResolver","label":"CategoriaResolver","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/categoria.resolver.ts"},{"id":"Backend:resolver:Index.ts","label":"Index.ts","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/index.ts"},{"id":"Backend:resolver:MesaResolver","label":"MesaResolver","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/mesa.resolver.ts"},{"id":"Backend:resolver:OrdenResolver","label":"OrdenResolver","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/orden.resolver.ts"},{"id":"Backend:resolver:PlatilloResolver","label":"PlatilloResolver","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/platillo.resolver.ts"},{"id":"Backend:resolver:ReservacionResolver","label":"ReservacionResolver","type":"CONTROLLER","filePath":"Backend/src/graphql/resolvers/reservacion.resolver.ts"},{"id":"Frontend:component:App","label":"App","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/app.ts"},{"id":"Frontend:service:AuthService","label":"AuthService","type":"SERVICE","filePath":"Frontend/src/app/core/auth/auth.service.ts"},{"id":"Frontend:store:AuthStore","label":"AuthStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/core/auth/auth.store.ts"},{"id":"Frontend:service:NotificationService","label":"NotificationService","type":"SERVICE","filePath":"Frontend/src/app/core/services/notification.service.ts"},{"id":"Frontend:service:StripeService","label":"StripeService","type":"SERVICE","filePath":"Frontend/src/app/core/services/stripe.service.ts"},{"id":"Frontend:component:AdminLayout","label":"AdminLayout","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/layouts/admin-layout/admin-layout.ts"},{"id":"Frontend:component:AuthLayout","label":"AuthLayout","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/layouts/auth-layout/auth-layout.ts"},{"id":"Frontend:component:PublicLayout","label":"PublicLayout","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/layouts/public-layout/public-layout.ts"},{"id":"Frontend:service:CategoriasService","label":"CategoriasService","type":"SERVICE","filePath":"Frontend/src/app/shared/categorias/categorias.service.ts"},{"id":"Frontend:store:CategoriasStore","label":"CategoriasStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/shared/categorias/categorias.store.ts"},{"id":"Frontend:service:DashboardService","label":"DashboardService","type":"SERVICE","filePath":"Frontend/src/app/features/dashboard/services/dashboard.service.ts"},{"id":"Frontend:service:MesasService","label":"MesasService","type":"SERVICE","filePath":"Frontend/src/app/features/mesas/services/mesas.service.ts"},{"id":"Frontend:store:MesasStore","label":"MesasStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/features/mesas/store/mesa.store.ts"},{"id":"Frontend:service:OrdenService","label":"OrdenService","type":"SERVICE","filePath":"Frontend/src/app/features/ordenes/services/orden.service.ts"},{"id":"Frontend:store:CarritoStore","label":"CarritoStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/features/ordenes/store/carrito.store.ts"},{"id":"Frontend:store:OrdenesStore","label":"OrdenesStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/features/ordenes/store/ordenes.store.ts"},{"id":"Frontend:service:PlatillosService","label":"PlatillosService","type":"SERVICE","filePath":"Frontend/src/app/features/platillos/services/platillos.service.ts"},{"id":"Frontend:store:PlatillosStore","label":"PlatillosStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/features/platillos/store/platillos.store.ts"},{"id":"Frontend:service:ReportesService","label":"ReportesService","type":"SERVICE","filePath":"Frontend/src/app/features/reportes/services/reportes.service.ts"},{"id":"Frontend:service:ReservacionService","label":"ReservacionService","type":"SERVICE","filePath":"Frontend/src/app/features/reservaciones/services/reservacion.service.ts"},{"id":"Frontend:service:UsuarioService","label":"UsuarioService","type":"SERVICE","filePath":"Frontend/src/app/features/usuarios/services/usuario.service.ts"},{"id":"Frontend:store:UsuariosStore","label":"UsuariosStore","type":"ANGULAR_STORE","filePath":"Frontend/src/app/features/usuarios/store/usuarios.store.ts"},{"id":"Frontend:component:CardComponent","label":"CardComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/card/card.component.ts"},{"id":"Frontend:component:ModalComponent","label":"ModalComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/modal/modal.component.ts"},{"id":"Frontend:component:NavbarComponent","label":"NavbarComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/navbar/navbar.component.ts"},{"id":"Frontend:component:PaginatorComponent","label":"PaginatorComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/paginator/paginator.component.ts"},{"id":"Frontend:component:PlatilloCardComponent","label":"PlatilloCardComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/platillo-card/platillo-card.component.ts"},{"id":"Frontend:component:LoginPageComponent","label":"LoginPageComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/auth/presentation/pages/login_page.component.ts"},{"id":"Frontend:component:CocinaListPage","label":"CocinaListPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/cocina/pages/cocina-list/cocina-list.page.ts"},{"id":"Frontend:component:DashboardMainPage","label":"DashboardMainPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/dashboard/pages/dashboard-main/dashboard-main.page.ts"},{"id":"Frontend:component:MesaModalComponent","label":"MesaModalComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/mesas/components/mesa_modal/mesa_modal.component.ts"},{"id":"Frontend:component:MesasComponent","label":"MesasComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/mesas/pages/mesas/mesas.component.ts"},{"id":"Frontend:component:MesasBatchComponent","label":"MesasBatchComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/mesas/pages/mesas_batch/mesas_batch.component.ts"},{"id":"Frontend:component:OrdenCrearPage","label":"OrdenCrearPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/ordenes/pages/orden-crear/orden-crear.page.ts"},{"id":"Frontend:component:OrdenListPage","label":"OrdenListPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/ordenes/pages/orden-list/orden-list.page.ts"},{"id":"Frontend:component:PlatilloModalComponent","label":"PlatilloModalComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/platillos/components/platillo_modal/platillo_modal.component.ts"},{"id":"Frontend:component:PlatilloBatchComponent","label":"PlatilloBatchComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/platillos/pages/platillo_batch/platillo_batch.component.ts"},{"id":"Frontend:component:PlatillosComponent","label":"PlatillosComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/platillos/pages/platillos/platillos.component.ts"},{"id":"Frontend:component:HomeComponent","label":"HomeComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/public/pages/home/home.component.ts"},{"id":"Frontend:component:MenuComponent","label":"MenuComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/public/pages/menu/menu.ts"},{"id":"Frontend:component:ReportesListPage","label":"ReportesListPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/reportes/pages/reportes-list/reportes-list.page.ts"},{"id":"Frontend:component:ReservacionFormComponent","label":"ReservacionFormComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/reservaciones/components/reservacion-form/reservacion-form.component.ts"},{"id":"Frontend:component:ReservacionPagoComponent","label":"ReservacionPagoComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/reservaciones/components/reservacion-pago/reservacion-pago.component.ts"},{"id":"Frontend:component:ReservacionCrearPage","label":"ReservacionCrearPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/reservaciones/pages/reservacion-crear/reservacion-crear.page.ts"},{"id":"Frontend:component:ReservacionListPage","label":"ReservacionListPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/reservaciones/pages/reservacion-list/reservacion-list.page.ts"},{"id":"Frontend:component:UsuarioFormComponent","label":"UsuarioFormComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/usuarios/components/usuario-form/usuario-form.component.ts"},{"id":"Frontend:component:UsuarioListPage","label":"UsuarioListPage","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/features/usuarios/pages/usuario-list/usuario-list.page.ts"},{"id":"Frontend:component:SearchBoxComponent","label":"SearchBoxComponent","type":"ANGULAR_COMPONENT","filePath":"Frontend/src/app/shared/components/ui/search-box/search-box.component.ts"}],"edges":[{"source":"Backend:controller:ArchivoController","target":"Backend:service:ArchivoService","type":"CALLS"},{"source":"Backend:controller:AuthController","target":"Backend:service:AuthService","type":"CALLS"},{"source":"Backend:controller:CategoriaController","target":"Backend:service:CategoriaService","type":"CALLS"},{"source":"Backend:controller:ClienteController","target":"Backend:service:ClienteService","type":"CALLS"},{"source":"Backend:controller:ConfiguracionController","target":"Backend:service:ConfiguracionService","type":"CALLS"},{"source":"Backend:controller:EmailController","target":"Backend:service:EmailService","type":"CALLS"},{"source":"Backend:controller:ExcelController","target":"Backend:service:ExcelService","type":"CALLS"},{"source":"Backend:controller:MesaController","target":"Backend:service:MesaService","type":"CALLS"},{"source":"Backend:controller:OrdenController","target":"Backend:service:OrdenService","type":"CALLS"},{"source":"Backend:controller:PagoController","target":"Backend:service:PagoService","type":"CALLS"},{"source":"Backend:controller:PagoController","target":"Backend:service:StripeService","type":"CALLS"},{"source":"Backend:controller:PdfController","target":"Backend:service:PdfService","type":"CALLS"},{"source":"Backend:controller:PlatilloController","target":"Backend:service:PlatilloService","type":"CALLS"},{"source":"Backend:controller:ReporteController","target":"Backend:service:ReporteService","type":"CALLS"},{"source":"Backend:controller:ReservacionController","target":"Backend:service:ReservacionService","type":"CALLS"},{"source":"Backend:controller:UsuarioController","target":"Backend:service:UsuarioService","type":"CALLS"},{"source":"Backend:endpoint:POST:/:subtipo","target":"Backend:controller:ArchivoController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:subtipo/:nombre","target":"Backend:controller:ArchivoController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:subtipo/:nombre","target":"Backend:controller:ArchivoController","type":"CALLS"},{"source":"Backend:endpoint:POST:/login","target":"Backend:controller:AuthController","type":"CALLS"},{"source":"Backend:endpoint:POST:/refresh","target":"Backend:controller:AuthController","type":"CALLS"},{"source":"Backend:endpoint:POST:/logout","target":"Backend:controller:AuthController","type":"CALLS"},{"source":"Backend:endpoint:GET:/me","target":"Backend:controller:AuthController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:CategoriaController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:CategoriaController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:CategoriaController","type":"CALLS"},{"source":"Backend:endpoint:PUT:/:id","target":"Backend:controller:CategoriaController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:CategoriaController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:ClienteController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:ClienteController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:ClienteController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id","target":"Backend:controller:ClienteController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:ClienteController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:ConfiguracionController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/","target":"Backend:controller:ConfiguracionController","type":"CALLS"},{"source":"Backend:endpoint:POST:/confirmar-reservacion","target":"Backend:controller:EmailController","type":"CALLS"},{"source":"Backend:endpoint:POST:/recuperar-password","target":"Backend:controller:EmailController","type":"CALLS"},{"source":"Backend:endpoint:POST:/prueba","target":"Backend:controller:EmailController","type":"CALLS"},{"source":"Backend:endpoint:GET:/menu","target":"Backend:controller:ExcelController","type":"CALLS"},{"source":"Backend:endpoint:GET:/ventas","target":"Backend:controller:ExcelController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:MesaController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:MesaController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:MesaController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id","target":"Backend:controller:MesaController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:MesaController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id/estado","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:PUT:/:id","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:OrdenController","type":"CALLS"},{"source":"Backend:endpoint:POST:/stripe","target":"Backend:controller:PagoController","type":"CALLS"},{"source":"Backend:endpoint:POST:/:id/pago","target":"Backend:controller:PagoController","type":"CALLS"},{"source":"Backend:endpoint:POST:/:id/cancelar","target":"Backend:controller:PagoController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id/completar","target":"Backend:controller:PagoController","type":"CALLS"},{"source":"Backend:endpoint:GET:/menu","target":"Backend:controller:PdfController","type":"CALLS"},{"source":"Backend:endpoint:GET:/ventas","target":"Backend:controller:PdfController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:POST:/batch","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:PlatilloController","type":"CALLS"},{"source":"Backend:endpoint:GET:/stats","target":"Backend:controller:ReporteController","type":"CALLS"},{"source":"Backend:endpoint:GET:/dashboard","target":"Backend:controller:ReporteController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:ReservacionController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:ReservacionController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:ReservacionController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id","target":"Backend:controller:ReservacionController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:ReservacionController","type":"CALLS"},{"source":"Backend:endpoint:GET:/roles","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:GET:/permisos","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:GET:/roles/:id/permisos","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:PUT:/roles/:id/permisos","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:GET:/","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:GET:/:id","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:POST:/","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:PATCH:/:id","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:endpoint:DELETE:/:id","target":"Backend:controller:UsuarioController","type":"CALLS"},{"source":"Backend:service:ArchivoService","target":"Backend:prisma:ct_tipo_documento","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ArchivoService","target":"Backend:prisma:dt_documento","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:AuthService","target":"Backend:prisma:ct_usuario","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:AuthService","target":"Backend:prisma:dt_refresh_token","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:AuthService","target":"Backend:prisma:rl_rol_permiso","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:CategoriaService","target":"Backend:prisma:ct_categoria","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ClienteService","target":"Backend:prisma:ct_cliente","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ConfiguracionService","target":"Backend:prisma:ct_configuracion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:EmailService","target":"Backend:prisma:ct_plantilla_correo","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ExcelService","target":"Backend:prisma:ct_platillo","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ExcelService","target":"Backend:prisma:rl_orden","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:MesaService","target":"Backend:prisma:ct_mesa","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:OrdenService","target":"Backend:prisma:rl_orden","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:PagoService","target":"Backend:prisma:ct_configuracion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:PagoService","target":"Backend:prisma:rl_reservacion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:PdfService","target":"Backend:prisma:ct_platillo","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:PdfService","target":"Backend:prisma:rl_orden","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:PlatilloService","target":"Backend:prisma:ct_platillo","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReporteService","target":"Backend:prisma:rl_orden","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReporteService","target":"Backend:prisma:dt_detalle_orden","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReporteService","target":"Backend:prisma:ct_platillo","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReporteService","target":"Backend:prisma:ct_mesa","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReservacionService","target":"Backend:prisma:rl_reservacion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReservacionService","target":"Backend:prisma:ct_cliente","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReservacionService","target":"Backend:prisma:ct_estado_reservacion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:ReservacionService","target":"Backend:prisma:ct_configuracion","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:UsuarioService","target":"Backend:prisma:ct_usuario","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:UsuarioService","target":"Backend:prisma:ct_rol","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:UsuarioService","target":"Backend:prisma:ct_permiso","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:service:UsuarioService","target":"Backend:prisma:rl_rol_permiso","type":"USES_MODEL","label":"Prisma client read/write"},{"source":"Backend:resolver:CategoriaResolver","target":"Backend:prisma:ct_categoria","type":"USES_MODEL"},{"source":"Backend:resolver:CategoriaResolver","target":"Backend:prisma:ct_platillo","type":"USES_MODEL"},{"source":"Backend:resolver:MesaResolver","target":"Backend:prisma:ct_mesa","type":"USES_MODEL"},{"source":"Backend:resolver:OrdenResolver","target":"Backend:prisma:rl_orden","type":"USES_MODEL"},{"source":"Backend:resolver:PlatilloResolver","target":"Backend:prisma:ct_platillo","type":"USES_MODEL"},{"source":"Backend:resolver:ReservacionResolver","target":"Backend:service:ReservacionService","type":"CALLS"},{"source":"Frontend:component:App","target":"Frontend:store:AuthStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:store:AuthStore","target":"Frontend:service:AuthService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:AuthStore","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:AdminLayout","target":"Frontend:store:AuthStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:store:CategoriasStore","target":"Frontend:service:CategoriasService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:MesasStore","target":"Frontend:service:MesasService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:MesasStore","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:OrdenesStore","target":"Frontend:service:OrdenService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:OrdenesStore","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:OrdenesStore","target":"Backend:graphql:subscription:ordenNueva","type":"CONSUMES","label":"GraphQL query/subscription link"},{"source":"Frontend:store:OrdenesStore","target":"Backend:graphql:subscription:ordenActualizada","type":"CONSUMES","label":"GraphQL query/subscription link"},{"source":"Frontend:store:OrdenesStore","target":"Frontend:store:AuthStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:store:PlatillosStore","target":"Frontend:service:PlatillosService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:PlatillosStore","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:UsuariosStore","target":"Frontend:service:UsuarioService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:store:UsuariosStore","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:NavbarComponent","target":"Frontend:store:AuthStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:LoginPageComponent","target":"Frontend:store:AuthStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:CocinaListPage","target":"Frontend:store:OrdenesStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:DashboardMainPage","target":"Frontend:service:DashboardService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:MesasComponent","target":"Frontend:store:MesasStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:MesasComponent","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:OrdenCrearPage","target":"Frontend:store:PlatillosStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:OrdenCrearPage","target":"Frontend:store:MesasStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:OrdenCrearPage","target":"Frontend:store:CarritoStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:OrdenCrearPage","target":"Frontend:service:OrdenService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:OrdenCrearPage","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:OrdenListPage","target":"Frontend:store:OrdenesStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:OrdenListPage","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:PlatilloModalComponent","target":"Frontend:store:CategoriasStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:PlatilloBatchComponent","target":"Frontend:store:PlatillosStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:PlatillosComponent","target":"Frontend:store:PlatillosStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:PlatillosComponent","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:MenuComponent","target":"Frontend:service:PlatillosService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReportesListPage","target":"Frontend:service:ReportesService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReservacionFormComponent","target":"Frontend:service:MesasService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReservacionPagoComponent","target":"Frontend:service:StripeService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReservacionCrearPage","target":"Frontend:service:ReservacionService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReservacionListPage","target":"Frontend:service:ReservacionService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:ReservacionListPage","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:UsuarioFormComponent","target":"Frontend:store:UsuariosStore","type":"CONSUMES","label":"uses signal state"},{"source":"Frontend:component:UsuarioFormComponent","target":"Frontend:service:UsuarioService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:UsuarioFormComponent","target":"Frontend:service:NotificationService","type":"CALLS","label":"calls REST service"},{"source":"Frontend:component:UsuarioListPage","target":"Frontend:store:UsuariosStore","type":"CONSUMES","label":"uses signal state"},{"source":"Backend:resolver:CategoriaResolver","target":"Backend:graphql:query:categorias","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:CategoriaResolver","target":"Backend:graphql:query:categoria","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:MesaResolver","target":"Backend:graphql:query:mesas","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:MesaResolver","target":"Backend:graphql:query:mesa","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:OrdenResolver","target":"Backend:graphql:query:ordenes","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:OrdenResolver","target":"Backend:graphql:query:orden","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:OrdenResolver","target":"Backend:graphql:subscription:ordenNueva","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:OrdenResolver","target":"Backend:graphql:subscription:ordenActualizada","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:PlatilloResolver","target":"Backend:graphql:query:platillos","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:PlatilloResolver","target":"Backend:graphql:query:platillo","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:ReservacionResolver","target":"Backend:graphql:query:reservaciones","type":"RESOLVES","label":"implements resolver logic"},{"source":"Backend:resolver:ReservacionResolver","target":"Backend:graphql:query:reservacion","type":"RESOLVES","label":"implements resolver logic"}]};
+    
+    // Configuración Inicial e Indicadores
+    document.getElementById('nodes-count').innerText = graphData.nodes.length;
+    
+    // Filtrar aristas inválidas (con origen o destino inexistente) para evitar que D3.js lance errores fatales
+    const nodeIds = new Set(graphData.nodes.map(n => n.id));
+    const validEdges = graphData.edges.filter(e => {
+      const sourceId = typeof e.source === 'object' ? e.source.id : e.source;
+      const targetId = typeof e.target === 'object' ? e.target.id : e.target;
+      const exists = nodeIds.has(sourceId) && nodeIds.has(targetId);
+      if (!exists) {
+        console.warn('Enlace ignorado por nodo inexistente:', e);
+      }
+      return exists;
+    });
+    
+    document.getElementById('edges-count').innerText = validEdges.length;
+
+    // Colores por tipo de nodo
+    const colors = {
+      'REST_ENDPOINT': '#ef4444',
+      'GRAPHQL_OPERATION': '#ec4899',
+      'SERVICE': '#3b82f6',
+      'CONTROLLER': '#10b981',
+      'PRISMA_MODEL': '#f59e0b',
+      'ANGULAR_STORE': '#8b5cf6',
+      'ANGULAR_COMPONENT': '#06b6d4',
+      'FILE': '#6b7280'
+    };
+
+    // Dimensiones
+    const width = window.innerWidth;
+    const height = window.innerHeight - 64; // Menos el header
+
+    // Crear el SVG Canvas con D3
+    const svg = d3.select('#graph-svg');
+    const container = svg.append('g');
+
+    // Añadir soporte para zoom y arrastre (zoom & pan)
+    svg.call(d3.zoom().scaleExtent([0.1, 4]).on('zoom', (event) => {
+      container.attr('transform', event.transform);
+    }));
+
+    // Marcador de flecha para los enlaces dirigidos
+    svg.append('defs').append('marker')
+      .attr('id', 'arrow')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 18) // Posición para que la flecha coincida al borde del nodo
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .attr('fill', '#4b5563');
+
+    // Inicializar simulación de fuerzas
+    const simulation = d3.forceSimulation(graphData.nodes)
+      .force('link', d3.forceLink(validEdges).id(d => d.id).distance(120))
+      .force('charge', d3.forceManyBody().strength(-150))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(30));
+
+    // Dibujar enlaces (links)
+    const link = container.append('g')
+      .selectAll('line')
+      .data(validEdges)
+      .enter()
+      .append('line')
+      .attr('class', 'link')
+      .attr('stroke', '#4b5563')
+      .attr('marker-end', 'url(#arrow)');
+
+    // Dibujar nodos (nodes)
+    const node = container.append('g')
+      .selectAll('g')
+      .data(graphData.nodes)
+      .enter()
+      .append('g')
+      .call(d3.drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended))
+      .on('click', (event, d) => showDetails(d));
+
+    // Dibujar círculos dentro de los grupos de nodo
+    node.append('circle')
+      .attr('r', 12)
+      .attr('class', 'node')
+      .attr('fill', d => colors[d.type] || '#6b7280')
+      .attr('stroke', '#0d1117')
+      .attr('stroke-width', 2);
+
+    // Dibujar etiquetas (labels) de nodos
+    node.append('text')
+      .attr('dx', 16)
+      .attr('dy', 4)
+      .attr('fill', '#c9d1d9')
+      .style('font-size', '10px')
+      .style('font-weight', '500')
+      .style('pointer-events', 'none')
+      .text(d => d.label);
+
+    // Actualizar posiciones en cada tick de la simulación
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+
+      node
+        .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
+    });
+
+    // Control del arrastre
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    // Mostrar detalles del nodo seleccionado
+    function showDetails(d) {
+      document.getElementById('node-name').innerText = d.label;
+      document.getElementById('node-file').innerText = d.filePath || 'Sin archivo asignado';
+      document.getElementById('node-layer').innerText = d.id.startsWith('Frontend:') ? 'Frontend (Angular)' : 'Backend (Express/GraphQL)';
+      
+      const badge = document.getElementById('node-type-badge');
+      badge.className = 'badge-' + d.type;
+      badge.innerText = d.type.replace('_', ' ');
+
+      // Obtener relaciones entrantes y salientes
+      const incoming = graphData.edges.filter(e => e.target.id === d.id);
+      const outgoing = graphData.edges.filter(e => e.source.id === d.id);
+
+      const incomingDiv = document.getElementById('incoming-relations');
+      incomingDiv.innerHTML = '';
+      if (incoming.length === 0) {
+        incomingDiv.innerHTML = '<span class="relation-empty">Ninguna</span>';
+      } else {
+        incoming.forEach(e => {
+          const item = document.createElement('div');
+          item.className = 'relation-item';
+          item.innerHTML = '<span class="relation-name">' + e.source.label + '</span> <span class="relation-type">' + e.type + '</span>';
+          item.style.cursor = 'pointer';
+          item.onclick = () => showDetails(e.source);
+          incomingDiv.appendChild(item);
+        });
+      }
+
+      const outgoingDiv = document.getElementById('outgoing-relations');
+      outgoingDiv.innerHTML = '';
+      if (outgoing.length === 0) {
+        outgoingDiv.innerHTML = '<span class="relation-empty">Ninguna</span>';
+      } else {
+        outgoing.forEach(e => {
+          const item = document.createElement('div');
+          item.className = 'relation-item';
+          item.innerHTML = '<span class="relation-name">' + e.target.label + '</span> <span class="relation-type">' + e.type + '</span>';
+          item.style.cursor = 'pointer';
+          item.onclick = () => showDetails(e.target);
+          outgoingDiv.appendChild(item);
+        });
+      }
+
+      // Resaltar en el SVG
+      link.classed('active', false).attr('stroke', '#4b5563');
+      link.filter(e => e.source.id === d.id || e.target.id === d.id)
+        .classed('active', true)
+        .attr('stroke', colors[d.type]);
+
+      document.getElementById('details-panel').classList.remove('hidden');
+    }
+
+    // Panel close
+    document.getElementById('close-panel').onclick = () => {
+      document.getElementById('details-panel').classList.add('hidden');
+      link.classed('active', false).attr('stroke', '#4b5563');
+    };
+
+    // Buscador interactivo
+    document.getElementById('search-input').oninput = (e) => {
+      const text = e.target.value.toLowerCase();
+      node.select('circle').attr('r', d => {
+        if (!text) return 12;
+        return d.label.toLowerCase().includes(text) ? 20 : 8;
+      });
+      node.select('text').style('font-size', d => {
+        if (!text) return '10px';
+        return d.label.toLowerCase().includes(text) ? '14px' : '8px';
+      });
+    };
+
+    // Ajuste de redimensión de ventana
+    window.onresize = () => {
+      simulation.force('center', d3.forceCenter(window.innerWidth / 2, (window.innerHeight - 64) / 2));
+      simulation.alpha(0.3).restart();
+    };
+
+  </script>
+</body>
+</html>
