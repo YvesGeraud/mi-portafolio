@@ -7,8 +7,8 @@ export const projects = [
     description:
       "Implementación de BFS, DFS y Dijkstra con animaciones paso a paso sobre grafos ponderados.",
     tags: ["Python", "NetworkX", "Matplotlib"],
-    image: "/images/grafos.png",
-    github: "https://github.com/tu-usuario/grafos",
+    image: `${import.meta.env.BASE_URL}images/grafos.png`,
+    github: "https://github.com/YvesGeraud/Grafos",
   },
   {
     id: 2,
