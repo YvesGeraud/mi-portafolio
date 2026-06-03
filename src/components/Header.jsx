@@ -9,7 +9,7 @@ function Header() {
         Senior Full Stack Developer con liderazgo técnico
       </p>
       <p className="header-subtitle">Java · Node.js · Angular · Arquitectura · Seguridad · Performance</p>
-      
+
       <p className="header-about">
         Ingeniero de Software Full Stack Senior con más de 10 años de experiencia en desarrollo,
         modernización de sistemas institucionales y mejora de arquitectura de software. He impulsado propuestas técnicas
